@@ -28,17 +28,22 @@ if (len(sys.argv) > 2):
 
 class1 = ''
 
-with open(sys.argv[1], 'rb') as csvfile:
+with open(sys.argv[1], 'r') as csvfile:
+	has_header = csv.Sniffer().has_header(csvfile.read(1024))
+	csvfile.seek(0)  # Rewind.
 	csvreader = csv.reader(csvfile)
+	if has_header:
+		next(csvreader)  # Skip header row.
+
 	for row in csvreader:
 		numpoints = numpoints+1
 		result = 0
 		numrows = len(row[:-1])
-        for elem in row[:-1]:
-            result = result + float(elem)
-	c = row[-1]
-	if (class1 == ''):
-		class1 = c
+		for elem in row[:-1]:
+			result = result + float(elem)
+		c = row[-1]
+		if (class1 == ''):
+			class1 = c
 		if (c == class1):
 			numclass1 = numclass1+1
 		if (rounding != -1):
