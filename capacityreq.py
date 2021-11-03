@@ -4,11 +4,11 @@ import csv
 import math
 import sys
 
-numrows = 0
+numcols = 0
 energies = []
-capacity = 0
+expcapreq = 0
 rounding = -1
-numpoints = 0
+numrows = 0
 numclass1 = 0
 
 if (len(sys.argv) == 1) or (len(sys.argv) > 3):
@@ -36,9 +36,9 @@ with open(sys.argv[1], 'r') as csvfile:
 		next(csvreader)  # Skip header row.
 
 	for row in csvreader:
-		numpoints = numpoints+1
+		numrows = numrows+1
 		result = 0
-		numrows = len(row[:-1])
+		numcols = len(row[:-1])
 		for elem in row[:-1]:
 			result = result + float(elem)
 		c = row[-1]
@@ -51,24 +51,32 @@ with open(sys.argv[1], 'r') as csvfile:
 		energies = energies+[(result, c)]
 sortedenergies = sorted(energies, key=lambda x: x[0])
 curclass = sortedenergies[0][1]
-changes = 0
+thresholds = 0
 for item in sortedenergies:
 	if (item[1] != curclass):
-		changes = changes+1
+		thresholds = thresholds+1
 		curclass = item[1]
 
-clusters = changes+1
-mincuts = math.ceil(math.log(clusters)/math.log(2))
-capacity = mincuts*numrows
-#tmlpcap=mincuts*(numrows+1)+(mincuts+1)
+thresholds = thresholds+1
 
-# The following assume two classes!
-entropy = -((float(changes)/numpoints)*math.log(float(changes)/numpoints) +
-            (float(numpoints-changes)/numpoints)*math.log(float(numpoints-changes)/numpoints))/math.log(2)
+# The following assume two classes (binary classifier: Y ∈ {0,1})
 
-print("Input dimensionality: ", numrows, ". Number of points:",
-      numpoints, ". Class balance:", float(numclass1)/numpoints)
-print("Eq. energy clusters: ", clusters,
+#number of bits to memorize biases & corresponding labels
+MEC = math.ceil(math.log(thresholds)/math.log(2))
+
+#assuming that for each feature, 
+expcapreq = MEC*numcols
+#maximum capacity needed: we need to train each weight for each column, train the biases, + 1
+maxcapreq = thresholds*numcols + thresholds +1
+
+entropy = -((float(thresholds)/numrows)*math.log(float(thresholds)/numrows) +
+            (float(numrows-thresholds)/numrows)*math.log(float(numrows-thresholds)/numrows))/math.log(2)
+
+print("Input dimensionality: ", numcols, ". Number of rows:",
+      numrows, ". Class balance:", float(numclass1)/numrows)
+print("Eq. energy clusters: ", thresholds,
       "=> binary decisions/sample:", entropy)
-print("Max capacity need: ", (changes*(numrows+1))+changes, "bits")
-print("Estimated capacity need: ", int(math.ceil(capacity)), "bits")
+print("Max capacity need: ", (thresholds*(numcols+1))+thresholds, "bits")
+print("Estimated capacity need: ", int(math.ceil(expcapreq)), "bits")
+print("Number of thresholds: ", thresholds)
+print("Log2 of thresholds", MEC)
