@@ -57,19 +57,19 @@ for item in sortedenergies:
 		thresholds = thresholds+1
 		curclass = item[1]
 
+
 thresholds = thresholds+1
+#number of bits to memorize all biases & corresponding binary labels (upper limit)
+MEC = math.ceil(math.log(thresholds)/math.log(2))
 
 # The following assume two classes (binary classifier: Y ∈ {0,1})
 
-#number of bits to memorize biases & corresponding binary labels (upper limit)
-MEC = math.ceil(math.log(thresholds)/math.log(2))
-
-#assuming each feature can hold complexity of MEC
+#assuming each feature will approx. hold complexity of MEC
 expcapreq = MEC*numcols
 
 #maximum capacity needed: we need to train each weight for each column, train the biases, + 1
 #not sure why +1 in numcols
-maxcap = thresholds*(numcols+1) + thresholds +1
+maxcap = thresholds*numcols + thresholds +1
 
 entropy = -((float(thresholds)/numrows)*math.log(float(thresholds)/numrows) +
             (float(numrows-thresholds)/numrows)*math.log(float(numrows-thresholds)/numrows))/math.log(2)
