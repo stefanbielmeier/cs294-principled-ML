@@ -3,3 +3,5 @@
 *.csv
 
 .daimensions.key
+
+__pycache__

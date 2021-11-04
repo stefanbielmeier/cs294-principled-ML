@@ -61,13 +61,15 @@ thresholds = thresholds+1
 
 # The following assume two classes (binary classifier: Y ∈ {0,1})
 
-#number of bits to memorize biases & corresponding labels
+#number of bits to memorize biases & corresponding binary labels (upper limit)
 MEC = math.ceil(math.log(thresholds)/math.log(2))
 
-#assuming that for each feature, 
+#assuming each feature can hold complexity of MEC
 expcapreq = MEC*numcols
+
 #maximum capacity needed: we need to train each weight for each column, train the biases, + 1
-maxcapreq = thresholds*numcols + thresholds +1
+#not sure why +1 in numcols
+maxcap = thresholds*(numcols+1) + thresholds +1
 
 entropy = -((float(thresholds)/numrows)*math.log(float(thresholds)/numrows) +
             (float(numrows-thresholds)/numrows)*math.log(float(numrows-thresholds)/numrows))/math.log(2)
@@ -76,7 +78,10 @@ print("Input dimensionality: ", numcols, ". Number of rows:",
       numrows, ". Class balance:", float(numclass1)/numrows)
 print("Eq. energy clusters: ", thresholds,
       "=> binary decisions/sample:", entropy)
-print("Max capacity need: ", (thresholds*(numcols+1))+thresholds, "bits")
-print("Estimated capacity need: ", int(math.ceil(expcapreq)), "bits")
+print()
 print("Number of thresholds: ", thresholds)
-print("Log2 of thresholds", MEC)
+print("Memory Equivalent Capacity, is log2 of thresholds", MEC, "bits")
+print("Estimated capacity need: ", int(math.ceil(expcapreq)), "bits")
+print()
+print("Max capacity need: ", maxcap, "bits")
+print("Really? Max cap after log2", int(math.ceil(math.log(maxcap)/math.log(2))))
