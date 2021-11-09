@@ -67,7 +67,7 @@ MEC = math.ceil(math.log(thresholds)/math.log(2))
 #assuming each feature will approx. hold complexity of MEC
 expcapreq = MEC*numcols
 
-#maximum capacity needed: T(N,K)
+#maximum capacity approximation needed
 maxcap = thresholds*numcols + thresholds +1
 
 entropy = -((float(thresholds)/numrows)*math.log(float(thresholds)/numrows) +
