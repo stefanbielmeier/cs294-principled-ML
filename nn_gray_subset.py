@@ -99,6 +99,7 @@ target_column = 1024
 num_attr = 1024
 n_classes = 2
 model_cap = 211
+#BN: changed this
 important_idxs = range(num_attr)
 ignore_idxs = []
 classifier_type = 'NN'
