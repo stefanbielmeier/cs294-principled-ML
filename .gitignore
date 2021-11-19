@@ -5,3 +5,7 @@
 .daimensions.key
 
 __pycache__
+datasets/*
+*.xml
+*.iml
+.idea/.name
