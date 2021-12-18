@@ -10,3 +10,4 @@ datasets/*
 *.iml
 .idea/.name
 old.dmn
+*.jpg
