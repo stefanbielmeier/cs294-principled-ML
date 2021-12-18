@@ -54,7 +54,7 @@ def get_dataset_rgb(path):
     return train_dataset, test_dataset
 
 
-def convert_rgb_to_grayscale(rgb_dataset):
+def convert_rgb_to_grayscale(rgb_dataset, quality):
     # Convert all train images to grayscale
     train_dataset_rgb, test_dataset_rgb = rgb_dataset
     train_images_rgb, train_labels = train_dataset_rgb
@@ -62,33 +62,43 @@ def convert_rgb_to_grayscale(rgb_dataset):
 
     cifarImages_rgb_train = []
     for i in range(len(train_images_rgb)):
-        cifarImages_rgb_train.append(train_images_rgb[i, :].reshape(3, 32, 32).transpose(1, 2, 0))
+        image = Image.fromarray(train_images_rgb[i, :].reshape(3, 32, 32).transpose(1, 2, 0))
+        buffer = BytesIO()
+        image.save(buffer, "JPEG", quality=quality)
+        image_compressed = np.array(Image.open(buffer))
+        cifarImages_rgb_train.append(image_compressed)
     train_images_gray = np.array([cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in cifarImages_rgb_train])
 
     cifarImages_rgb_test = []
     for i in range(len(test_images_rgb)):
-        cifarImages_rgb_test.append(test_images_rgb[i, :].reshape(3, 32, 32).transpose(1, 2, 0))
+        image = Image.fromarray(test_images_rgb[i, :].reshape(3, 32, 32).transpose(1, 2, 0))
+        buffer = BytesIO()
+        image.save(buffer, "JPEG", quality=quality)
+        image_compressed = np.array(Image.open(buffer))
+        cifarImages_rgb_test.append(image_compressed)
     test_images_gray = np.array([cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) for image in cifarImages_rgb_test])
 
     return (train_images_gray, train_labels), (test_images_gray, test_labels)
 
 
-def dataset_gray_to_csv(dataset, dst):
+def dataset_gray_to_csv(dataset, dst, classes):
     header = []
     for i in range(32 * 32):
         header.append("Px " + str(i))
     header.append("class")
 
     images, labels = dataset
+    #images = NormalizeData(images)
 
     i = 0
     with open(dst, 'w') as f:
         writer = csv.writer(f)
         writer.writerow(header)
         for image, label in zip(images, labels):
-            value = image.flatten()
-            value = np.append(value, cifarClassName[label])
-            writer.writerow(value)
+            if cifarClassName[label] in classes:
+                value = image.flatten()
+                value = np.append(value, cifarClassName[label])
+                writer.writerow(value)
             i = i + 1
             print('\r' + "Progress: {:4}/{:4} images | {:.2f}% ".format(i, len(images),
                                                                         (float(i) / float(len(images)) * 100.0)),
@@ -128,6 +138,10 @@ def dataset_RGB_to_csv(dataset, dst, quality=100):
     print("\n")
 
 
+def NormalizeData(data):
+    return (data - np.min(data)) / (np.max(data) - np.min(data))
+
+
 def jpeg_compress(image, quality):
     buf = BytesIO()
     imageio.imwrite(buf, image, format='jpg', quality=quality)
@@ -154,12 +168,14 @@ def convolve_dataset_2d(gray_dataset, kernel_, padding=0, strides=1):
     return (train_images_gray, train_labels), (test_images_gray, test_labels)
 
 
-def generate_compression_overview(dataset, qualitys):
+def generate_compression_overview(dataset, qualitys, mode="gray"):
     images, labels = dataset
     compressed_images = []
     # take first image
-    image_rgb = images[2].reshape(3, 32, 32).transpose(1, 2, 0)
-    im1 = Image.fromarray(image_rgb)
+    image = images[1]
+    if mode == "rgb":
+        image_rgb = image.reshape(3, 32, 32).transpose(1, 2, 0)
+    im1 = Image.fromarray(image)
     dim = 3
     plt.figure(figsize=(8, 8))
     for i, quality in enumerate(qualitys):
@@ -171,11 +187,60 @@ def generate_compression_overview(dataset, qualitys):
         plt.title("q: " + str(quality) + " s: " + str(size) + "bytes")
         plt.axis('off')
         img = mpimg.imread(buffer, format='jpeg')
-        plt.imshow(img)
+        plt.imshow(img, cmap='gray', vmin=0, vmax=255)
         with open("./quality_" + str(quality) + ".jpg", "wb") as file:
             file.write(buffer.getvalue())
         buffer.seek(0)
     plt.savefig("./matrix.jpg")
+    plt.show()
+
+
+def generate_dataset_overview(dataset, quality=20):
+    images, labels = dataset
+    compressed_images = []
+    # take first image
+    data = []
+    for i in range(0, 10):
+        index = np.where(labels == i)[0][0]
+        data.append((images[index], labels[index]))
+
+    nrow = 10
+    ncol = 3
+    # fig = plt.figure()#figsize=(8, 8))
+    fig, ax = plt.subplots(nrow, ncol)
+    for i, _ in enumerate(data):
+        image, label = data[i]
+
+        image_rgb = image.reshape(3, 32, 32).transpose(1, 2, 0)
+        image_rgb = Image.fromarray(image_rgb)
+
+        buffer = BytesIO()
+        image_rgb.save(buffer, "JPEG", quality=quality)
+        size = buffer.tell()
+
+        image_compressed = np.array(Image.open(buffer))
+        image_gray = cv2.cvtColor(image_compressed, cv2.COLOR_BGR2GRAY)
+
+        # ax[0, 0].plot((nrow, ncol), (i, 0))
+        # plt.title(cifarClassName[label] + " RGB", pad=20)
+        ax[i, 0].axis('off')
+        ax[i, 0].imshow(image_rgb)
+
+        # plt.subplot2grid((nrow, ncol), (i, 1))
+
+        # plt.title(cifarClassName[label] + " compressed")
+        ax[i, 1].axis('off')
+        ax[i, 1].imshow(image_compressed)
+
+        # plt.subplot2grid((nrow, ncol), (i, 2))
+
+        # plt.title(cifarClassName[label] + " gray")
+        ax[i, 2].axis('off')
+        ax[i, 2].imshow(image_gray, cmap='gray', vmin=0, vmax=255)
+
+        buffer.seek(0)
+    plt.savefig("./matrix.jpg")
+    fig.tight_layout()
     plt.show()
 
 
@@ -189,29 +254,38 @@ if __name__ == "__main__":
     dataset_rgb = get_dataset_rgb(cifar_path)  # (train_dataset, test_dataset)
     dataset_RGB_train, dataset_RGB_test = dataset_rgb
 
-    quality_list = [1, 5, 10, 15, 20, 25, 50, 75, 100]
-    # generate_compression_overview(dataset_RGB_train, quality_list)
+    # generate_dataset_overview(dataset_RGB_train)
+    # exit()
+    # quality_list = [1, 5, 10, 15, 20, 25, 50, 75, 100]
+    quality_list = [20]
+
+    # generate_compression_overview(dataset_RGB_train, quality_list, mode="rgb")
+
+    # for quality in quality_list:
+    #     path_train = dataset_path + "cifar10_RGB_quality_" + str(quality) + "_train.csv"
+    #     path_test = dataset_path + "cifar10_RGB_quality_" + str(quality) + "_test.csv"
+    #     if not os.path.isfile(path_train):
+    #         dataset_RGB_to_csv(dataset=dataset_RGB_train, dst=path_train, quality=quality)
+    #     if not os.path.isfile(path_test):
+    #         dataset_RGB_to_csv(dataset=dataset_RGB_test, dst=path_test, quality=quality)
+    #
+    # exit()
+
+    # generate_compression_overview(dataset_gray_train, quality_list, mode="gray")
+    # exit()
+    classes = ['cat', 'dog']
 
     for quality in quality_list:
-        path_train = dataset_path + "cifar10_RGB_quality_" + str(quality) + "_train.csv"
-        path_test = dataset_path + "cifar10_RGB_quality_" + str(quality) + "_test.csv"
+        dataset_gray_train, dataset_gray_test = convert_rgb_to_grayscale(dataset_rgb, quality=quality)
+        path_train = dataset_path + "gray_cat_dog_q_" + str(quality) + "_train.csv"
+        path_test = dataset_path + "gray_cat_dog_q_" + str(quality) + "_test.csv"
         if not os.path.isfile(path_train):
-            dataset_RGB_to_csv(dataset=dataset_RGB_train, dst=path_train, quality=quality)
+            dataset_gray_to_csv(dataset=dataset_gray_train, dst=path_train, classes=classes)
         if not os.path.isfile(path_test):
-            dataset_RGB_to_csv(dataset=dataset_RGB_test, dst=path_test, quality=quality)
+            dataset_gray_to_csv(dataset=dataset_gray_test, dst=path_test, classes=classes)
 
-    exit()
-
-    dataset_gray_train, dataset_gray_test = convert_rgb_to_grayscale(dataset_rgb)
-
-    if not os.path.isfile(dataset_path + "cifar10_gray_train.csv"):
-        dataset_gray_to_csv(dataset=dataset_gray_train, dst=dataset_path + "cifar10_gray_train.csv")
-
-    if not os.path.isfile(dataset_path + "cifar10_gray_test.csv"):
-        dataset_gray_to_csv(dataset=dataset_gray_test, dst=dataset_path + "cifar10_gray_test.csv")
-
-    kernel = np.asarray([[1, 1, 1], [1, -8, 1], [1, 1, 1]], dtype=np.uint8)
-    dataset_gray_train_conv2D, dataset_gray_test_conv2D = convolve_dataset_2d((dataset_gray_train, dataset_gray_test),
-                                                                              kernel)
-    # dataset_gray_to_csv(dataset=dataset_gray_train_conv2D, dst=dataset_path + "cifar10_gray_train_conv2d.csv")
-    dataset_gray_to_csv(dataset=dataset_gray_test_conv2D, dst=dataset_path + "cifar10_gray_test_conv2d.csv")
+    # if not os.path.isfile(dataset_path + "cifar10_gray_train.csv"):
+    #     dataset_gray_to_csv(dataset=dataset_gray_train, dst=dataset_path + "cifar10_gray_train.csv")
+    #
+    # if not os.path.isfile(dataset_path + "cifar10_gray_test.csv"):
+    #     dataset_gray_to_csv(dataset=dataset_gray_test, dst=dataset_path + "cifar10_gray_test.csv")
